@@ -1,5 +1,6 @@
 import os
 import sys
+import time
 import tkinter as tk
 from tkinter import ttk, simpledialog, messagebox
 from tracker import Tracker, setup_db
@@ -20,7 +21,7 @@ class TrackerGUI:
         self.root = root
         self.root.title("Time Tracker")
         self.root.geometry("600x360")
-        self.root.minsize(600, 200)
+        self.root.minsize(600, 360)
         self.root.configure(bg="white")
 
         set_window_icon(self.root, resource_path("icons/logo.png"))
@@ -40,8 +41,17 @@ class TrackerGUI:
         title_label.pack(side=tk.LEFT)
         title_frame.pack_propagate(False)
 
-        self.tracker_list_frame = tk.Frame(self.trackers_frame, bg="white")
-        self.tracker_list_frame.pack(fill=tk.BOTH, expand=True)
+        title_frame = tk.Frame(self.trackers_frame, height=10, bg="white")
+        title_frame.pack(fill=tk.X)
+        separator_label = tk.Frame(title_frame, width=400, height=1, bg="#EDECEC")
+        separator_label.pack(side=tk.LEFT)
+        title_frame.pack_propagate(False)
+
+        self.tracker_list_canvas = tk.Canvas(self.trackers_frame, bg="white", highlightthickness=0)
+        self.tracker_list_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+        self.tracker_list_frame = tk.Frame(self.tracker_list_canvas, bg="white")
+        self.tracker_list_canvas.create_window((0, 0), window=self.tracker_list_frame, anchor="nw")
 
         toolbar_frame = tk.Frame(main_frame, width=35, height=290, bg="white")
         toolbar_frame.pack(side=tk.RIGHT, fill=tk.Y)
@@ -61,16 +71,34 @@ class TrackerGUI:
         self.delete_button.pack(pady=15)
 
         self.trackers = []
+        self.scrollbar = None
         self.load_trackers()
         self.update_progress()
+
+    def on_mouse_wheel(self, event):
+        self.tracker_list_canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
 
     def load_trackers(self):
         for widget in self.tracker_list_frame.winfo_children():
             widget.destroy()
 
         self.trackers = Tracker.get_all_trackers()
+        self.update_scrollbar()
         for tracker in self.trackers:
             self.display_tracker(tracker)
+
+    def update_scrollbar(self):
+        if self.scrollbar:
+            self.scrollbar.destroy()
+        if len(self.trackers) > 3:
+            self.scrollbar = ttk.Scrollbar(self.trackers_frame, orient="vertical", command=self.tracker_list_canvas.yview, style='Vertical.TScrollbar')
+            self.scrollbar.pack(side=tk.RIGHT, fill=tk.Y, padx=(0, 20))
+            self.tracker_list_canvas.configure(yscrollcommand=self.scrollbar.set)
+            self.tracker_list_frame.bind("<Configure>", lambda e: self.tracker_list_canvas.configure(scrollregion=self.tracker_list_canvas.bbox("all")))
+            self.tracker_list_canvas.bind_all("<MouseWheel>", self.on_mouse_wheel)
+        else:
+            self.tracker_list_canvas.configure(yscrollcommand=None)
+            self.tracker_list_canvas.unbind_all("<MouseWheel>")
 
     def display_tracker(self, tracker):
         tracker_frame = tk.Frame(self.tracker_list_frame, pady=15, bg="white")
@@ -199,7 +227,7 @@ class TrackerDialog:
         button_frame = tk.Frame(self.top, bg="white")
         button_frame.pack(pady=(20, 10))
 
-        ok_button = tk.Button(button_frame, text="OK", command=self.on_ok, font=self.label_font, bg="white", fg="#2EAADC", relief=tk.FLAT,borderwidth=1)
+        ok_button = tk.Button(button_frame, text="OK", command=self.on_ok, font=self.label_font, bg="white", fg="#2EAADC", relief=tk.FLAT, borderwidth=1)
         ok_button.pack(side=tk.LEFT, padx=10)
 
         cancel_button = tk.Button(button_frame, text="Cancel", command=self.top.destroy, font=self.label_font, bg="white", fg="#37352F", relief=tk.FLAT, borderwidth=1)
@@ -242,7 +270,7 @@ class SelectTrackerDialog:
         button_frame = tk.Frame(self.top, bg="white")
         button_frame.pack(pady=(20, 10))
 
-        ok_button = tk.Button(button_frame, text="OK", command=self.on_ok, font=self.label_font, bg="white", fg="#2EAADC", relief=tk.FLAT,borderwidth=1)
+        ok_button = tk.Button(button_frame, text="OK", command=self.on_ok, font=self.label_font, bg="white", fg="#2EAADC", relief=tk.FLAT, borderwidth=1)
         ok_button.pack(side=tk.LEFT, padx=10)
 
         cancel_button = tk.Button(button_frame, text="Cancel", command=self.top.destroy, font=self.label_font, bg="white", fg="#37352F", relief=tk.FLAT, borderwidth=1)
@@ -266,3 +294,11 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"Error: {e}")
 
+"""
+pyinstaller --noconfirm --onefile --windowed --icon 
+"D:\Documents\GitHub\Tracker\icons\logo.ico" 
+--add-data "D:\Documents\GitHub\Tracker\win.wav;." 
+--add-data "D:\Documents\GitHub\Tracker\icons;icons/" 
+--add-data "D:\Documents\GitHub\Tracker\fonts;fonts/"  
+"D:\Documents\GitHub\Tracker\gui.py"
+"""
